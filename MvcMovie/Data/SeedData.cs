@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using MvcMovie.Data;
+using MvcMovie.Models;
 
-namespace MvcMovie.Models;
+namespace MvcMovie.Data;
 
 public static class SeedData
 {
