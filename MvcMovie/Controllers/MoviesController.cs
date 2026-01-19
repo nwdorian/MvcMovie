@@ -3,169 +3,171 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MvcMovie.Data;
 using MvcMovie.Models;
+using MvcMovie.Services.Contracts.Get;
+using MvcMovie.Services.Interfaces;
 using MvcMovie.ViewModels;
 
-namespace MvcMovie.Controllers
+namespace MvcMovie.Controllers;
+
+public class MoviesController(IMovieService movieService, MvcMovieContext context) : Controller
 {
-    public class MoviesController : Controller
+    public async Task<IActionResult> Index(
+        int page = 1,
+        int pageSize = 8,
+        string sortColumn = "title",
+        string sortOrder = "asc",
+        string? genre = null,
+        string? searchString = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        private readonly MvcMovieContext _context;
+        GetMoviesPageRequest getMoviesRequest = new(
+            page,
+            pageSize,
+            sortColumn,
+            sortOrder,
+            searchString,
+            genre
+        );
 
-        public MoviesController(MvcMovieContext context)
+        GetMoviesPageResponse getMoviesResponse = await movieService.GetPage(
+            getMoviesRequest,
+            cancellationToken
+        );
+
+        var movieGenreVM = new MovieGenreViewModel
         {
-            _context = context;
+            Genres = new SelectList(
+                await context
+                    .Movie.OrderBy(m => m.Genre)
+                    .Select(m => m.Genre)
+                    .Distinct()
+                    .ToListAsync(cancellationToken)
+            ),
+            Movies = getMoviesResponse.Movies,
+        };
+
+        return View(movieGenreVM);
+    }
+
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
         }
 
-        // GET: Movies
-        public async Task<IActionResult> Index(string movieGenre, string searchString)
+        var movie = await context.Movie.FirstOrDefaultAsync(m => m.Id == id);
+        if (movie == null)
         {
-            if (_context.Movie is null)
-            {
-                return Problem("Entity set 'MvcMovieContext.Movie'  is null.");
-            }
-
-            IQueryable<string> genreQuery = from m in _context.Movie orderby m.Genre select m.Genre;
-
-            var movies = from m in _context.Movie select m;
-
-            if (!string.IsNullOrEmpty(searchString))
-            {
-                movies = movies.Where(s => s.Title!.ToUpper().Contains(searchString.ToUpper()));
-            }
-
-            if (!string.IsNullOrEmpty(movieGenre))
-            {
-                movies = movies.Where(x => x.Genre == movieGenre);
-            }
-
-            var movieGenreVM = new MovieGenreViewModel
-            {
-                Genres = new SelectList(await genreQuery.Distinct().ToListAsync()),
-                Movies = await movies.ToListAsync(),
-            };
-
-            return View(movieGenreVM);
+            return NotFound();
         }
 
-        public async Task<IActionResult> Details(int? id)
+        return View(movie);
+    }
+
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(
+        [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie
+    )
+    {
+        if (ModelState.IsValid)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var movie = await _context.Movie.FirstOrDefaultAsync(m => m.Id == id);
-            if (movie == null)
-            {
-                return NotFound();
-            }
-
-            return View(movie);
-        }
-
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(
-            [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie
-        )
-        {
-            if (ModelState.IsValid)
-            {
-                _context.Add(movie);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(movie);
-        }
-
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var movie = await _context.Movie.FindAsync(id);
-            if (movie == null)
-            {
-                return NotFound();
-            }
-            return View(movie);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(
-            int id,
-            [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie
-        )
-        {
-            if (id != movie.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(movie);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!MovieExists(movie.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            return View(movie);
-        }
-
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var movie = await _context.Movie.FirstOrDefaultAsync(m => m.Id == id);
-            if (movie == null)
-            {
-                return NotFound();
-            }
-
-            return View(movie);
-        }
-
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var movie = await _context.Movie.FindAsync(id);
-            if (movie != null)
-            {
-                _context.Movie.Remove(movie);
-            }
-
-            await _context.SaveChangesAsync();
+            context.Add(movie);
+            await context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
+        return View(movie);
+    }
 
-        private bool MovieExists(int id)
+    public async Task<IActionResult> Edit(int? id)
+    {
+        if (id == null)
         {
-            return _context.Movie.Any(e => e.Id == id);
+            return NotFound();
         }
+
+        var movie = await context.Movie.FindAsync(id);
+        if (movie == null)
+        {
+            return NotFound();
+        }
+        return View(movie);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(
+        int id,
+        [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie
+    )
+    {
+        if (id != movie.Id)
+        {
+            return NotFound();
+        }
+
+        if (ModelState.IsValid)
+        {
+            try
+            {
+                context.Update(movie);
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!MovieExists(movie.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return RedirectToAction(nameof(Index));
+        }
+        return View(movie);
+    }
+
+    public async Task<IActionResult> Delete(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        var movie = await context.Movie.FirstOrDefaultAsync(m => m.Id == id);
+        if (movie == null)
+        {
+            return NotFound();
+        }
+
+        return View(movie);
+    }
+
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        var movie = await context.Movie.FindAsync(id);
+        if (movie != null)
+        {
+            context.Movie.Remove(movie);
+        }
+
+        await context.SaveChangesAsync();
+        return RedirectToAction(nameof(Index));
+    }
+
+    private bool MovieExists(int id)
+    {
+        return context.Movie.Any(e => e.Id == id);
     }
 }
