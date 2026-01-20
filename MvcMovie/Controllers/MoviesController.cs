@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using MvcMovie.Core.Primitives;
 using MvcMovie.Data;
 using MvcMovie.Models;
 using MvcMovie.Services.Contracts.Get;
+using MvcMovie.Services.Contracts.GetById;
 using MvcMovie.Services.Interfaces;
-using MvcMovie.ViewModels;
+using MvcMovie.ViewModels.Movies;
+using MvcMovie.ViewModels.Movies.Projections;
+using MvcMovie.ViewModels.Shared;
 
 namespace MvcMovie.Controllers;
 
@@ -95,20 +99,36 @@ public class MoviesController(IMovieService movieService, MvcMovieContext contex
         return View(movieGenreVM);
     }
 
-    public async Task<IActionResult> Details(int? id)
+    public async Task<IActionResult> Details(int? id, CancellationToken cancellationToken = default)
     {
         if (id == null)
         {
             return NotFound();
         }
 
-        var movie = await context.Movie.FirstOrDefaultAsync(m => m.Id == id);
-        if (movie == null)
+        GetMovieByIdRequest getMovieRequest = new(id.Value);
+        Result<GetMovieByIdResponse> getMovieResponse = await movieService.GetById(
+            getMovieRequest,
+            cancellationToken
+        );
+
+        if (getMovieResponse.IsFailure)
         {
-            return NotFound();
+            return View(
+                new MovieDetailsViewModel { Errors = new() { getMovieResponse.Error.Description } }
+            );
         }
 
-        return View(movie);
+        MovieDetails movie = new(
+            getMovieResponse.Value.Id,
+            getMovieResponse.Value.Title,
+            getMovieResponse.Value.ReleaseDate,
+            getMovieResponse.Value.Genre,
+            getMovieResponse.Value.Price,
+            getMovieResponse.Value.Rating
+        );
+
+        return View(new MovieDetailsViewModel { Movie = movie });
     }
 
     public IActionResult Create()

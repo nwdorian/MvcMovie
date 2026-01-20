@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MvcMovie.ViewModels;
+namespace MvcMovie.ViewModels.Movies.Projections;
 
-public class MovieDisplay(
+public class MovieDetails(
     int id,
     string title,
     DateTime releaseDate,

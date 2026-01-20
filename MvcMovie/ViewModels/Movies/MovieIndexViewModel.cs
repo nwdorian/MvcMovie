@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
+using MvcMovie.ViewModels.Movies.Projections;
+using MvcMovie.ViewModels.Shared;
 
-namespace MvcMovie.ViewModels;
+namespace MvcMovie.ViewModels.Movies;
 
 public class MovieIndexViewModel
 {

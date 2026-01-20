@@ -1,4 +1,4 @@
-namespace MvcMovie.ViewModels;
+namespace MvcMovie.ViewModels.Shared;
 
 public class ErrorViewModel
 {

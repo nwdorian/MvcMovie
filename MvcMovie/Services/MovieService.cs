@@ -1,9 +1,11 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using MvcMovie.Core;
+using MvcMovie.Core.Primitives;
 using MvcMovie.Data;
 using MvcMovie.Models;
 using MvcMovie.Services.Contracts.Get;
+using MvcMovie.Services.Contracts.GetById;
 using MvcMovie.Services.Interfaces;
 
 namespace MvcMovie.Services;
@@ -39,6 +41,7 @@ public class MovieService(MvcMovieContext context) : IMovieService
         int count = await moviesQuery.CountAsync(cancellationToken);
 
         Movie[] moviesPage = await moviesQuery
+            .AsNoTracking()
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .ToArrayAsync(cancellationToken);
@@ -54,6 +57,32 @@ public class MovieService(MvcMovieContext context) : IMovieService
             pagedList.HasNextPage,
             pagedList.Items
         );
+    }
+
+    public async Task<Result<GetMovieByIdResponse>> GetById(
+        GetMovieByIdRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        GetMovieByIdResponse? movie = await context
+            .Movie.AsNoTracking()
+            .Where(m => m.Id == request.Id)
+            .Select(m => new GetMovieByIdResponse(
+                m.Id,
+                m.Title,
+                m.ReleaseDate,
+                m.Genre,
+                m.Price,
+                m.Rating
+            ))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (movie is null)
+        {
+            return MovieErrors.NotFoundById(request.Id);
+        }
+
+        return movie;
     }
 
     private static Expression<Func<Movie, object>> GetSortProperty(GetMoviesPageRequest request)
