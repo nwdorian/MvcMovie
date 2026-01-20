@@ -4,6 +4,7 @@ using MvcMovie.Core;
 using MvcMovie.Core.Primitives;
 using MvcMovie.Data;
 using MvcMovie.Models;
+using MvcMovie.Services.Contracts.Create;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
 using MvcMovie.Services.Interfaces;
@@ -83,6 +84,26 @@ public class MovieService(MvcMovieContext context) : IMovieService
         }
 
         return movie;
+    }
+
+    public async Task<Result> Create(
+        CreateMovieRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        Movie movie = new()
+        {
+            Title = request.Title,
+            ReleaseDate = request.ReleaseDate,
+            Genre = request.Genre,
+            Price = request.Price,
+            Rating = request.Rating,
+        };
+
+        context.Movie.Add(movie);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 
     private static Expression<Func<Movie, object>> GetSortProperty(GetMoviesPageRequest request)

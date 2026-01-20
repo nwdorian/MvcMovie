@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MvcMovie.Core.Primitives;
 using MvcMovie.Data;
 using MvcMovie.Models;
+using MvcMovie.Services.Contracts.Create;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
 using MvcMovie.Services.Interfaces;
@@ -133,22 +134,41 @@ public class MoviesController(IMovieService movieService, MvcMovieContext contex
 
     public IActionResult Create()
     {
-        return View();
+        return View(new MovieCreateViewModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(
-        [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie
-    )
+    public async Task<IActionResult> Create(MovieCreate movie, CancellationToken cancellationToken)
     {
-        if (ModelState.IsValid)
+        if (!ModelState.IsValid)
         {
-            context.Add(movie);
-            await context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            return View(new MovieCreateViewModel() { Movie = movie });
         }
-        return View(movie);
+
+        CreateMovieRequest createMovieRequest = new(
+            movie.Title,
+            movie.ReleaseDate,
+            movie.Genre,
+            movie.Price,
+            movie.Rating
+        );
+        Result createMovieResponse = await movieService.Create(
+            createMovieRequest,
+            cancellationToken
+        );
+
+        if (createMovieResponse.IsFailure)
+        {
+            return View(
+                new MovieCreateViewModel()
+                {
+                    Errors = new() { createMovieResponse.Error.Description },
+                }
+            );
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Edit(int? id)

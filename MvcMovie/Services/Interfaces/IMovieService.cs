@@ -1,4 +1,5 @@
 using MvcMovie.Core.Primitives;
+using MvcMovie.Services.Contracts.Create;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
 
@@ -10,9 +11,9 @@ public interface IMovieService
         GetMoviesPageRequest request,
         CancellationToken cancellationToken
     );
-
     Task<Result<GetMovieByIdResponse>> GetById(
         GetMovieByIdRequest request,
         CancellationToken cancellationToken
     );
+    Task<Result> Create(CreateMovieRequest request, CancellationToken cancellationToken);
 }
