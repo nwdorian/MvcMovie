@@ -7,6 +7,7 @@ using MvcMovie.Models;
 using MvcMovie.Services.Contracts.Create;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
+using MvcMovie.Services.Contracts.Update;
 using MvcMovie.Services.Interfaces;
 
 namespace MvcMovie.Services;
@@ -101,6 +102,32 @@ public class MovieService(MvcMovieContext context) : IMovieService
         };
 
         context.Movie.Add(movie);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> Update(
+        UpdateMovieRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        Movie? movie = await context.Movie.FirstOrDefaultAsync(
+            m => m.Id == request.Id,
+            cancellationToken
+        );
+
+        if (movie is null)
+        {
+            return MovieErrors.NotFoundById(request.Id);
+        }
+
+        movie.Title = request.Title;
+        movie.ReleaseDate = request.ReleaseDate;
+        movie.Genre = request.Genre;
+        movie.Price = request.Price;
+        movie.Rating = request.Rating;
+
         await context.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

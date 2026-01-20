@@ -22,6 +22,7 @@
   <ItemGroup>
     <Folder Include="Services\Contracts\Create\" />
     <Folder Include="Services\Contracts\GetById\" />
+    <Folder Include="Services\Contracts\Update\" />
     <Folder Include="Services\Interfaces\" />
   </ItemGroup>
 </Project>

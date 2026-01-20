@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MvcMovie.Core.Primitives;
 using MvcMovie.Data;
-using MvcMovie.Models;
 using MvcMovie.Services.Contracts.Create;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
+using MvcMovie.Services.Contracts.Update;
 using MvcMovie.Services.Interfaces;
 using MvcMovie.ViewModels.Movies;
 using MvcMovie.ViewModels.Movies.Projections;
@@ -171,54 +171,80 @@ public class MoviesController(IMovieService movieService, MvcMovieContext contex
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Edit(int? id)
+    public async Task<IActionResult> Edit(int? id, CancellationToken cancellationToken)
     {
-        if (id == null)
+        if (id is null)
         {
             return NotFound();
         }
 
-        var movie = await context.Movie.FindAsync(id);
-        if (movie == null)
+        GetMovieByIdRequest getMovieRequest = new(id.Value);
+        Result<GetMovieByIdResponse> getMovieResponse = await movieService.GetById(
+            getMovieRequest,
+            cancellationToken
+        );
+
+        if (getMovieResponse.IsFailure)
         {
-            return NotFound();
+            return View(
+                new MovieUpdateViewModel()
+                {
+                    GetByIdErrors = new() { getMovieResponse.Error.Description },
+                }
+            );
         }
-        return View(movie);
+
+        MovieUpdate movie = new()
+        {
+            Title = getMovieResponse.Value.Title,
+            ReleaseDate = getMovieResponse.Value.ReleaseDate,
+            Genre = getMovieResponse.Value.Genre,
+            Price = getMovieResponse.Value.Price,
+            Rating = getMovieResponse.Value.Rating,
+        };
+
+        return View(new MovieUpdateViewModel() { Movie = movie });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
         int id,
-        [Bind("Id,Title,ReleaseDate,Genre,Price,Rating")] Movie movie
+        MovieUpdate movie,
+        CancellationToken cancellationToken
     )
     {
-        if (id != movie.Id)
+        if (!ModelState.IsValid)
         {
-            return NotFound();
+            return View(new MovieUpdateViewModel() { Movie = movie });
         }
 
-        if (ModelState.IsValid)
+        UpdateMovieRequest updateMovieRequest = new(
+            id,
+            movie.Title,
+            movie.ReleaseDate,
+            movie.Genre,
+            movie.Price,
+            movie.Rating
+        );
+
+        Result updateMovieResponse = await movieService.Update(
+            updateMovieRequest,
+            cancellationToken
+        );
+
+        if (updateMovieResponse.IsFailure)
         {
-            try
-            {
-                context.Update(movie);
-                await context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!MovieExists(movie.Id))
+            return View(
+                new MovieUpdateViewModel()
                 {
-                    return NotFound();
+                    UpdateErrors = new() { updateMovieResponse.Error.Description },
+                    Movie = movie,
                 }
-                else
-                {
-                    throw;
-                }
-            }
-            return RedirectToAction(nameof(Index));
+            );
         }
-        return View(movie);
+
+        return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Delete(int? id)
