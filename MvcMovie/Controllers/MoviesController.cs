@@ -13,7 +13,7 @@ public class MoviesController(IMovieService movieService, MvcMovieContext contex
 {
     public async Task<IActionResult> Index(
         int page = 1,
-        int pageSize = 8,
+        int pageSize = 10,
         string sortColumn = "title",
         string sortOrder = "asc",
         string? genre = null,
@@ -35,16 +35,61 @@ public class MoviesController(IMovieService movieService, MvcMovieContext contex
             cancellationToken
         );
 
-        var movieGenreVM = new MovieGenreViewModel
+        var movieGenreVM = new MovieIndexViewModel
         {
+            Movies = getMoviesResponse
+                .Movies.Select(m => new MovieDisplay(
+                    m.Id,
+                    m.Title,
+                    m.ReleaseDate,
+                    m.Genre,
+                    m.Price,
+                    m.Rating
+                ))
+                .ToList(),
+            PagingMetadata = new PagingMetadata(
+                getMoviesResponse.Page,
+                getMoviesResponse.PageSize,
+                getMoviesResponse.TotalCount,
+                getMoviesResponse.TotalPages,
+                getMoviesResponse.HasPreviousPage,
+                getMoviesResponse.HasNextPage
+            ),
             Genres = new SelectList(
                 await context
                     .Movie.OrderBy(m => m.Genre)
                     .Select(m => m.Genre)
                     .Distinct()
-                    .ToListAsync(cancellationToken)
+                    .ToListAsync(cancellationToken),
+                selectedValue: genre
             ),
-            Movies = getMoviesResponse.Movies,
+            SortColumns = new SelectList(
+                new[]
+                {
+                    new { Value = "title", Text = "Title" },
+                    new { Value = "release_date", Text = "Release Date" },
+                    new { Value = "genre", Text = "Genre" },
+                    new { Value = "price", Text = "Price" },
+                    new { Value = "rating", Text = "Rating" },
+                },
+                "Value",
+                "Text",
+                selectedValue: sortColumn
+            ),
+            SortOrders = new SelectList(
+                new[]
+                {
+                    new { Value = "asc", Text = "Ascending" },
+                    new { Value = "desc", Text = "Descending" },
+                },
+                "Value",
+                "Text",
+                selectedValue: sortOrder
+            ),
+            Genre = genre,
+            SortColumn = sortColumn,
+            SortOrder = sortOrder,
+            SearchString = searchString,
         };
 
         return View(movieGenreVM);
