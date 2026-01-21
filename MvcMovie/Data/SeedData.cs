@@ -13,11 +13,13 @@ public static class SeedData
             )
         )
         {
-            // Look for any movies.
+            context.Database.Migrate();
+
             if (context.Movie.Any())
             {
-                return; // DB has been seeded
+                return;
             }
+
             context.Movie.AddRange(
                 new Movie
                 {
