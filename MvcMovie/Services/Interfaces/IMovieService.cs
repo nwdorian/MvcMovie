@@ -1,5 +1,6 @@
 using MvcMovie.Core.Primitives;
 using MvcMovie.Services.Contracts.Create;
+using MvcMovie.Services.Contracts.Delete;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
 using MvcMovie.Services.Contracts.Update;
@@ -18,4 +19,5 @@ public interface IMovieService
     );
     Task<Result> Create(CreateMovieRequest request, CancellationToken cancellationToken);
     Task<Result> Update(UpdateMovieRequest request, CancellationToken cancellationToken);
+    Task<Result> Delete(DeleteMovieRequest request, CancellationToken cancellationToken);
 }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MvcMovie.Core.Primitives;
 using MvcMovie.Data;
 using MvcMovie.Services.Contracts.Create;
+using MvcMovie.Services.Contracts.Delete;
 using MvcMovie.Services.Contracts.Get;
 using MvcMovie.Services.Contracts.GetById;
 using MvcMovie.Services.Contracts.Update;
@@ -247,38 +248,61 @@ public class MoviesController(IMovieService movieService, MvcMovieContext contex
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Delete(int? id)
+    public async Task<IActionResult> Delete(int? id, CancellationToken cancellationToken)
     {
-        if (id == null)
+        if (id is null)
         {
             return NotFound();
         }
 
-        var movie = await context.Movie.FirstOrDefaultAsync(m => m.Id == id);
-        if (movie == null)
+        GetMovieByIdRequest getMovieRequest = new(id.Value);
+        Result<GetMovieByIdResponse> getMovieResponse = await movieService.GetById(
+            getMovieRequest,
+            cancellationToken
+        );
+
+        if (getMovieResponse.IsFailure)
         {
-            return NotFound();
+            return View(
+                new MovieDeleteViewModel()
+                {
+                    GetByIdErrors = new() { getMovieResponse.Error.Description },
+                }
+            );
         }
 
-        return View(movie);
+        MovieDelete movie = new(
+            getMovieResponse.Value.Id,
+            getMovieResponse.Value.Title,
+            getMovieResponse.Value.ReleaseDate,
+            getMovieResponse.Value.Genre,
+            getMovieResponse.Value.Price,
+            getMovieResponse.Value.Rating
+        );
+
+        return View(new MovieDeleteViewModel() { Movie = movie });
     }
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(int id)
+    public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken cancellationToken)
     {
-        var movie = await context.Movie.FindAsync(id);
-        if (movie != null)
+        DeleteMovieRequest deleteMovieRequest = new(id);
+        Result deleteMovieResponse = await movieService.Delete(
+            deleteMovieRequest,
+            cancellationToken
+        );
+
+        if (deleteMovieResponse.IsFailure)
         {
-            context.Movie.Remove(movie);
+            return View(
+                new MovieDeleteViewModel()
+                {
+                    DeleteErrors = new() { deleteMovieResponse.Error.Description },
+                }
+            );
         }
 
-        await context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
-    }
-
-    private bool MovieExists(int id)
-    {
-        return context.Movie.Any(e => e.Id == id);
     }
 }
